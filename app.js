@@ -1,5 +1,5 @@
-const SUPABASE_URL = window.ENV_SUPABASE_URL;
-const SUPABASE_KEY = window.ENV_SUPABASE_KEY;
+const SUPABASE_URL = 'https://[your-project-id].supabase.co';
+const SUPABASE_KEY = 'sb_publishable_...your key here...';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const PRINTERS = ['Printer 1','Printer 2','Printer 3','Printer 4','Printer 5','Printer 6','Printer 7','Printer 8','Printer 9'];
