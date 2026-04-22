@@ -1,6 +1,6 @@
 const SUPABASE_URL = 'https://[your-project-id].supabase.co';
 const SUPABASE_KEY = 'sb_publishable_...your key here...';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const PRINTERS = ['Printer 1','Printer 2','Printer 3','Printer 4','Printer 5','Printer 6','Printer 7','Printer 8','Printer 9'];
 
@@ -17,12 +17,12 @@ async function init() {
 }
 
 async function loadMaterials() {
-  const { data, error } = await supabase.from('materials').select('*').order('num');
+  const { data, error } = await db.from('materials').select('*').order('num');
   if (!error) materials = data;
 }
 
 async function loadRolls() {
-  const { data, error } = await supabase.from('rolls').select('*').order('received_at', { ascending: false });
+  const { data, error } = await db.from('rolls').select('*').order('received_at', { ascending: false });
   if (!error) {
     rolls = data;
     PRINTERS.forEach(p => { slots[p] = Array(8).fill(null); });
@@ -150,7 +150,7 @@ async function addMaterial() {
   const size = document.getElementById('mt-size').value.trim();
   const msg = document.getElementById('mt-msg');
   if (!num || !description) { msg.textContent = 'Material # and description required.'; msg.className = 'msg err'; return; }
-  const { error } = await supabase.from('materials').insert({ num, description, size });
+  const { error } = await db.from('materials').insert({ num, description, size });
   if (error) { msg.textContent = error.message; msg.className = 'msg err'; return; }
   msg.textContent = `Added ${num}.`; msg.className = 'msg';
   await loadMaterials();
@@ -161,27 +161,25 @@ async function addMaterial() {
 
 async function deleteMaterial(num) {
   if (!confirm(`Remove material type ${num}?`)) return;
-  await supabase.from('materials').delete().eq('num', num);
+  await db.from('materials').delete().eq('num', num);
   await loadMaterials();
   renderMaterialTable();
-}
-
-async function receiveRoll() {
+}async function receiveRoll() {
   const matNum = document.getElementById('rx-mat').value;
   const wt = parseFloat(document.getElementById('rx-wt').value);
   const msg = document.getElementById('rx-msg');
   if (!matNum || !wt || wt <= 0) { msg.textContent = 'Select a material and enter a valid weight.'; msg.className = 'msg err'; return; }
   const mat = materials.find(m => m.num === matNum);
-  const { data: existing } = await supabase.from('rolls').select('id').order('id', { ascending: false }).limit(1);
+  const { data: existing } = await db.from('rolls').select('id').order('id', { ascending: false }).limit(1);
   let nextNum = 1;
   if (existing && existing.length > 0) {
     const lastNum = parseInt(existing[0].id.replace('R-', ''));
     nextNum = lastNum + 1;
   }
   const id = 'R-' + String(nextNum).padStart(4, '0');
-  const { error } = await supabase.from('rolls').insert({ id, mat_num: matNum, mat_desc: mat.description, weight: wt, status: 'in-stock', location: 'Warehouse' });
+  const { error } = await db.from('rolls').insert({ id, mat_num: matNum, mat_desc: mat.description, weight: wt, status: 'in-stock', location: 'Warehouse' });
   if (error) { msg.textContent = error.message; msg.className = 'msg err'; return; }
-  await supabase.from('event_log').insert({ event: 'Received', roll_id: id, mat_num: matNum, weight: wt, notes: `Received into stock at ${wt}lb` });
+  await db.from('event_log').insert({ event: 'Received', roll_id: id, mat_num: matNum, weight: wt, notes: `Received into stock at ${wt}lb` });
   msg.textContent = `Roll ${id} received (${matNum} · ${wt}lb).`; msg.className = 'msg';
   document.getElementById('rx-wt').value = '';
   await loadRolls();
@@ -232,9 +230,9 @@ async function allocateRoll() {
   if (!rollId) { msg.textContent = 'Select a roll.'; msg.className = 'msg err'; return; }
   const freeSlot = slots[printer].findIndex(s => s === null);
   if (freeSlot === -1) { msg.textContent = `${printer} is full (8/8 slots).`; msg.className = 'msg err'; return; }
-  const { error } = await supabase.from('rolls').update({ status: 'hold', location: printer, slot_index: freeSlot, job_num: jobNum || null }).eq('id', rollId);
+  const { error } = await db.from('rolls').update({ status: 'hold', location: printer, slot_index: freeSlot, job_num: jobNum || null }).eq('id', rollId);
   if (error) { msg.textContent = error.message; msg.className = 'msg err'; return; }
-  await supabase.from('event_log').insert({ event: 'To hold grid', roll_id: rollId, mat_num: rolls.find(r => r.id === rollId)?.mat_num, weight: rolls.find(r => r.id === rollId)?.weight, notes: `Placed in ${printer} slot ${freeSlot + 1}${jobNum ? ' for job ' + jobNum : ''}` });
+  await db.from('event_log').insert({ event: 'To hold grid', roll_id: rollId, mat_num: rolls.find(r => r.id === rollId)?.mat_num, weight: rolls.find(r => r.id === rollId)?.weight, notes: `Placed in ${printer} slot ${freeSlot + 1}${jobNum ? ' for job ' + jobNum : ''}` });
   msg.textContent = `${rollId} placed in ${printer} slot ${freeSlot + 1}.`; msg.className = 'msg';
   await loadRolls();
   setTimeout(() => { msg.textContent = ''; renderAllocate(); }, 2500);
@@ -327,9 +325,9 @@ async function confirmRun() {
   const roll = rolls.find(r => r.id === val);
   if (!roll) { msg.textContent = 'Roll not found.'; msg.className = 'msg err'; return; }
   if (roll.status !== 'hold') { msg.textContent = 'Roll must be in a hold grid to scan to run.'; msg.className = 'msg err'; return; }
-  const { error } = await supabase.from('rolls').update({ status: 'running', ran_at: new Date().toISOString() }).eq('id', val);
+  const { error } = await db.from('rolls').update({ status: 'running', ran_at: new Date().toISOString() }).eq('id', val);
   if (error) { msg.textContent = error.message; msg.className = 'msg err'; return; }
-  await supabase.from('event_log').insert({ event: 'On machine', roll_id: roll.id, mat_num: roll.mat_num, weight: roll.weight, notes: `Scanned to run on ${roll.location}` });
+  await db.from('event_log').insert({ event: 'On machine', roll_id: roll.id, mat_num: roll.mat_num, weight: roll.weight, notes: `Scanned to run on ${roll.location}` });
   msg.textContent = `${roll.id} is now running on ${roll.location}. Slot ${roll.slot_index + 1} cleared.`; msg.className = 'msg';
   document.getElementById('scan-input').value = '';
   document.getElementById('scan-preview').innerHTML = '';
@@ -358,7 +356,7 @@ function generateQR() {
 async function renderLog() {
   const el = document.getElementById('tab-log');
   el.innerHTML = '<div class="loading">Loading...</div>';
-  const { data, error } = await supabase.from('event_log').select('*').order('time', { ascending: false }).limit(200);
+  const { data, error } = await db.from('event_log').select('*').order('time', { ascending: false }).limit(200);
   if (error) { el.innerHTML = `<div class="no-data">${error.message}</div>`; return; }
   el.innerHTML = `<div class="card">
     <div class="card-title">Event log</div>
