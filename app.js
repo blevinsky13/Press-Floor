@@ -2,7 +2,7 @@ const SUPABASE_URL = 'https://dpmurppopcbahoefnrix.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__vBzdbJ0NkNwlR_FywJMTw_ix5n6exh';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const PRINTERS = ['Printer 1','Printer 2','Printer 3','Printer 4','Printer 5','Printer 6','Printer 7','Printer 8','Printer 9'];
+const PRINTERS = ['VC40','Canon','Mono Duplex','Color 2','Mono 3','VC40M','HP A2200','Vario','VC80'];
 
 let materials = [];
 let rolls = [];
